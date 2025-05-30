@@ -1,18 +1,7 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-
-const geistSans = Geist({
-    variable: "--font-geist-sans",
-    subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-    variable: "--font-geist-mono",
-    subsets: ["latin"],
-});
 
 export const metadata: Metadata = {
     title: "Create Next App",
@@ -24,20 +13,12 @@ export default async function RootLayout({
 }: Readonly<{
     children: React.ReactNode;
 }>) {
-    // const supabase = await createClient();
-
-    // const { data, error } = await supabase.auth.getUser();
-    // if (error || !data?.user) {
-    //     redirect("/auth/login");
-    // }
-
     return (
-        <html lang="en">
+        <html lang="en" className="dark h-full">
             <body
-                className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+                className={`h-full`}
             >
                 {children}
-                {/* <pre>{JSON.stringify(data.user, null, 2)}</pre> */}
             </body>
         </html>
     );

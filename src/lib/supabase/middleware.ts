@@ -45,8 +45,15 @@ export async function updateSession(request: NextRequest) {
         data: { user },
     } = await supabase.auth.getUser();
 
+    if (user && request.nextUrl.pathname.startsWith("/auth")) {
+        // Authenticated user attempting to access an auth page.
+        // Redirect to protected page.
+        const url = request.nextUrl.clone();
+        url.pathname = "/vibe";
+        return NextResponse.redirect(url);
+    }
+
     if (
-        // request.nextUrl.pathname !== "/" &&
         !user &&
         !request.nextUrl.pathname.startsWith("/login") &&
         !request.nextUrl.pathname.startsWith("/auth")

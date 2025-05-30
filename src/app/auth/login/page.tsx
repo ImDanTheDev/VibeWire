@@ -12,6 +12,7 @@ export default function Page() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
 
+
     const oauthLogin = async (provider: Provider) => {
         try {
             const { error } = await supabase.auth.signInWithOAuth({
