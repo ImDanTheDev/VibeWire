@@ -62,6 +62,12 @@ export const create = mutation({
             serverId: serverId
         });
 
+        // Auto-create an initial channel.
+        const _channelId = ctx.db.insert("channels", {
+            name: "General",
+            serverId: serverId
+        });
+
         return serverId;
     },
 })
