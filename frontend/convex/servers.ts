@@ -2,15 +2,30 @@ import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
 import { getCurrentUserOrThrow } from "./users";
 
-export const getOwned = query({
+// export const getOwned = query({
+//     args: {},
+//     handler: async (ctx) => {
+//         const user = await getCurrentUserOrThrow(ctx);
+
+//         const servers = await ctx.db.query("servers").withIndex("byOwner", (q) => q.eq("owner", user._id)).collect();
+//         return servers.map(x => ({ id: x._id, name: x.name }));
+//     },
+// });
+
+export const getJoined = query({
     args: {},
     handler: async (ctx) => {
         const user = await getCurrentUserOrThrow(ctx);
 
-        const servers = await ctx.db.query("servers").withIndex("byOwner", (q) => q.eq("owner", user._id)).collect();
-        return servers.map(x => ({ id: x._id, name: x.name }));
+        const joinedServers = await ctx.db.query("userServers").withIndex("byUser", (q) => q.eq("userId", user._id)).collect();
+        return Promise.all(joinedServers.map(async x => {
+            const server = await ctx.db.get(x.serverId);
+
+            return { id: server?._id || "NO_SERVER_ID", name: server?.name || "NO_SERVER_NAME" }
+        }));
     },
 });
+
 
 export const create = mutation({
     args: { name: v.string() },
@@ -19,6 +34,12 @@ export const create = mutation({
         const serverId = await ctx.db.insert("servers", {
             name: args.name,
             owner: user._id
+        });
+
+        // Auto-join user to the server they created.
+        const _membershipId = ctx.db.insert("userServers", {
+            userId: user._id,
+            serverId: serverId
         });
 
         return serverId;
