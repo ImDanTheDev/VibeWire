@@ -5,8 +5,6 @@ import { getCurrentUserOrThrow } from "./users";
 export const getOwned = query({
     args: {},
     handler: async (ctx) => {
-        console.log("server identityy", await ctx.auth.getUserIdentity());
-
         const user = await getCurrentUserOrThrow(ctx);
 
         const servers = await ctx.db.query("servers").withIndex("byOwner", (q) => q.eq("owner", user._id)).collect();

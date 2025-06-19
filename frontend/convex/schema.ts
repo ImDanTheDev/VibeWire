@@ -10,6 +10,10 @@ export default defineSchema({
         name: v.string(),
         owner: v.id("users")
     }).index("byOwner", ["owner"]),
+    channels: defineTable({
+        name: v.string(),
+        serverId: v.id("servers")
+    }).index("byServerId", ["serverId"]),
     tasks: defineTable({
         isCompleted: v.boolean(),
         text: v.string()
