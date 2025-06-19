@@ -1,6 +1,5 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
-import { Id } from "./_generated/dataModel";
 
 export default defineSchema({
     users: defineTable({

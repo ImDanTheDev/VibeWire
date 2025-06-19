@@ -1,9 +1,12 @@
 import MemberList from "@/components/MemberList";
+import MemberListWrapper from "@/components/MemberListWrapper";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
+import { Id } from "../../../../../../convex/_generated/dataModel";
+import Authenticated from "@/components/Authenticated";
 
-export default async function ChannelLayout({ children, params }: Readonly<{ children: React.ReactNode, params: Promise<{ channelId: string }> }>) {
+export default async function ChannelLayout({ children, params }: Readonly<{ children: React.ReactNode, params: Promise<{ serverId: Id<"servers">, channelId: string }> }>) {
 
-    const { channelId } = await params;
+    const { channelId, serverId } = await params;
 
     return (
         <div className="flex flex-col  h-full">
@@ -16,7 +19,9 @@ export default async function ChannelLayout({ children, params }: Readonly<{ chi
                 </ResizablePanel>
                 <ResizableHandle />
                 <ResizablePanel defaultSize={15}>
-                    <MemberList />
+                    <Authenticated>
+                        <MemberListWrapper serverId={serverId} />
+                    </Authenticated>
                 </ResizablePanel>
             </ResizablePanelGroup>
         </div>

@@ -2,6 +2,26 @@ import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
 import { getCurrentUserOrThrow } from "./users";
 
+export const getMembers = query({
+    args: { serverId: v.id("servers") },
+    handler: async (ctx, args) => {
+        const user = await getCurrentUserOrThrow(ctx);
+
+        // Require that user is a member of this server.
+        const membership = await ctx.db.query("userServers").withIndex("byUserServer", (q) => q.eq("userId", user._id).eq("serverId", args.serverId)).first();
+        if (membership === null) {
+            throw new Error("User not a member of this server.");
+        }
+
+        const members = await ctx.db.query("userServers").withIndex("byServer", (q) => q.eq("serverId", args.serverId)).collect();
+        return Promise.all(members.map(async x => {
+            const user = await ctx.db.get(x.userId);
+
+            return { id: user?._id || "NO_USER_ID", name: user?.name || "NO_USER_NAME" }
+        }));
+    },
+});
+
 // export const getOwned = query({
 //     args: {},
 //     handler: async (ctx) => {
