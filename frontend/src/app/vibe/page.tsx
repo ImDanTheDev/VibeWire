@@ -7,7 +7,7 @@ export default async function Vibing() {
         <>
             <span>Vibing</span>
             <SignOutButton />
-            <Thing />
+            {/* <Thing /> */}
         </>
     );
 }

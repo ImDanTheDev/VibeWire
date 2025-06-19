@@ -1,13 +1,5 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import {
-    ClerkProvider,
-    SignInButton,
-    SignUpButton,
-    SignedIn,
-    SignedOut,
-    UserButton,
-} from '@clerk/nextjs'
 import ConvexClientProvider from "@/components/ConvexClientProvider";
 
 export const metadata: Metadata = {
@@ -26,11 +18,9 @@ export default async function RootLayout({
             <body
                 className={`h-full`}
             >
-                <ClerkProvider>
-                    <ConvexClientProvider>
-                        {children}
-                    </ConvexClientProvider>
-                </ClerkProvider>
+                <ConvexClientProvider>
+                    {children}
+                </ConvexClientProvider>
             </body>
         </html >
 
