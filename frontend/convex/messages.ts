@@ -3,18 +3,18 @@ import { query, mutation } from "./_generated/server";
 import { getCurrentUserOrThrow } from "./users";
 
 export const getAll = query({
-    args: { channelId: v.id("channels") },
+    args: { serverId: v.id("servers"), channelId: v.id("channels") },
     handler: async (ctx, args) => {
         // Require authentication
         const user = await getCurrentUserOrThrow(ctx);
 
-        const serverId = (await ctx.db.get(args.channelId))?.serverId;
-        if (!serverId) {
-            throw new Error("Server does not exist");
-        }
+        // Ensure the channel exists in the provided server.
+        const channel = await ctx.db.get(args.channelId);
+        if (!channel) throw new Error("Channel does not exist");
+        if (channel.serverId === undefined || channel.serverId !== args.serverId) throw new Error("Channel does not exist in server");
 
         // Require that user is a member of the server this channel belongs to.
-        const membership = await ctx.db.query("userServers").withIndex("byUserServer", (q) => q.eq("userId", user._id).eq("serverId", serverId)).first();
+        const membership = await ctx.db.query("userServers").withIndex("byUserServer", (q) => q.eq("userId", user._id).eq("serverId", args.serverId)).first();
         if (membership === null) {
             throw new Error("User not a member of this server.");
         }

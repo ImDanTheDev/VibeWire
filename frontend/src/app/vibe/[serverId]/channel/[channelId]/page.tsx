@@ -8,14 +8,14 @@ import { Id } from "../../../../../../convex/_generated/dataModel"
 import Authenticated from "@/components/Authenticated"
 import MessageSender from "@/components/MessageSender"
 
-export default async function ChannelPage({ params }: Readonly<{ params: Promise<{ channelId: Id<"channels"> }> }>) {
-    const { channelId } = await params;
+export default async function ChannelPage({ params }: Readonly<{ params: Promise<{ serverId: Id<"servers">, channelId: Id<"channels"> }> }>) {
+    const { serverId, channelId } = await params;
     return (
         <div className="flex flex-col h-full justify-end">
             <ScrollArea className="border-b grow-0 shrink min-h-0">
                 <div className="flex flex-col">
                     <Authenticated>
-                        <MessageListWrapper channelId={channelId} />
+                        <MessageListWrapper serverId={serverId} channelId={channelId} />
                     </Authenticated>
                     {/* {(() => {
                         return [...Array(20)].map((_, i) => (

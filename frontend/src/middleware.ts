@@ -1,9 +1,20 @@
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server'
+import { NextResponse } from 'next/server';
 
 const isProtectedRoute = createRouteMatcher(['/vibe(.*)']);
 
 export default clerkMiddleware(async (auth, req) => {
     if (isProtectedRoute(req)) await auth.protect()
+
+    const mostRecentServer = req.cookies.get("mostRecentServer");
+    const mostRecentChannel = req.cookies.get("mostRecentChannel");
+    console.log("AAA", mostRecentChannel, mostRecentServer);
+    if (mostRecentServer) {
+        if (mostRecentChannel) {
+            return NextResponse.redirect(`/vibe/${mostRecentServer}/channel/${mostRecentChannel}`);
+        }
+        return NextResponse.redirect(`/vibe/${mostRecentServer}`);
+    }
 })
 
 export const config = {

@@ -1,15 +1,16 @@
-import MemberList from "@/components/MemberList";
 import MemberListWrapper from "@/components/MemberListWrapper";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
 import { Id } from "../../../../../../convex/_generated/dataModel";
 import Authenticated from "@/components/Authenticated";
+import RememberChannel from "@/components/RememberChannel";
+import { cookies } from "next/headers";
 
-export default async function ChannelLayout({ children, params }: Readonly<{ children: React.ReactNode, params: Promise<{ serverId: Id<"servers">, channelId: string }> }>) {
-
+export default async function ChannelLayout({ children, params }: Readonly<{ children: React.ReactNode, params: Promise<{ serverId: Id<"servers">, channelId: Id<"channels"> }> }>) {
     const { channelId, serverId } = await params;
 
     return (
         <div className="flex flex-col  h-full">
+            <RememberChannel channelId={channelId} />
             <div className="border-b p-1">
                 <span>{channelId}</span>
             </div>
