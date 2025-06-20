@@ -1,6 +1,8 @@
 import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
 import { getCurrentUserOrThrow } from "./users";
+import { api } from "./_generated/api";
+import { Id } from "./_generated/dataModel";
 
 export const getMembers = query({
     args: { serverId: v.id("servers") },
@@ -31,6 +33,27 @@ export const getMembers = query({
 //         return servers.map(x => ({ id: x._id, name: x.name }));
 //     },
 // });
+
+export const getFirstJoinedServerChannel = query({
+    args: {},
+    handler: async (ctx) => {
+        // Require authentication
+        const user = await getCurrentUserOrThrow(ctx);
+
+        // First server the user is a member of
+        const membership = await ctx.db.query("userServers").withIndex("byUser", (q) => q.eq("userId", user._id)).first();
+        if (membership === null) {
+            throw new Error("User not a member of any servers.");
+        }
+
+        const channelId: Id<"channels"> = (await ctx.runQuery(api.channels.getFirst, { serverId: membership.serverId })).id;
+        if (channelId === null) {
+            throw new Error("Server has no channels.");
+        }
+
+        return { serverId: membership.serverId, channelId: channelId };
+    },
+});
 
 export const getJoined = query({
     args: {},

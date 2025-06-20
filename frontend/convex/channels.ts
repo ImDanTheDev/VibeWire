@@ -21,6 +21,28 @@ export const get = query({
     },
 });
 
+export const getFirst = query({
+    args: {
+        serverId: v.id("servers")
+    },
+    handler: async (ctx, { serverId }) => {
+        // Require authentication
+        const user = await getCurrentUserOrThrow(ctx);
+
+        // Require that user is a member of this server.
+        const membership = await ctx.db.query("userServers").withIndex("byUserServer", (q) => q.eq("userId", user._id).eq("serverId", serverId)).first();
+        if (membership === null) {
+            throw new Error("User not a member of this server.");
+        }
+
+        const channel = await ctx.db.query("channels").withIndex("byServerId", (q) => q.eq("serverId", serverId)).first();
+        if (channel === null) {
+            throw new Error("Server has no channels.");
+        }
+        return { id: channel._id, name: channel.name };
+    },
+});
+
 export const create = mutation({
     args: { name: v.string(), serverId: v.id("servers") },
     handler: async (ctx, args) => {

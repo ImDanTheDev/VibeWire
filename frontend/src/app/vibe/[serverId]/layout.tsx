@@ -1,12 +1,6 @@
-import ChannelListEntry from "@/components/ChannelListEntry"
 import ChannelListWrapper from "@/components/ChannelListWrapper";
-import ServerListWrapper from "@/components/ServerListWrapper";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Save } from "lucide-react";
 import { Id } from "../../../../convex/_generated/dataModel";
 import CreateChannel from "@/components/CreateChannel";
 import Authenticated from "@/components/Authenticated";
@@ -26,9 +20,6 @@ export default async function ServerLayout({ children, params }: Readonly<{ chil
                                 <CreateChannel serverId={serverId} />
                                 <ChannelListWrapper serverId={serverId} />
                             </Authenticated>
-                            {/* <ChannelListEntry name="general" serverId={serverId} channelId="654" />
-                        <ChannelListEntry name="gaming" serverId={serverId} channelId="138" />
-                        <ChannelListEntry name="memes" serverId={serverId} channelId="798" /> */}
                         </div>
                     </ScrollArea>
                 </ResizablePanel>
