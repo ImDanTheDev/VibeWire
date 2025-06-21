@@ -4,6 +4,7 @@ import ServerListWrapper from "@/components/ServerListWrapper";
 import CreateServer from "@/components/CreateServer";
 import UserButton from "@/components/UserButton";
 import Authenticated from "@/components/Authenticated";
+import ChannelHistoryProvider from "@/components/ChannelHistoryContext";
 
 export default function VibeLayout({
     children,
@@ -13,18 +14,20 @@ export default function VibeLayout({
 
     return (
         <>
-            <div className="flex flex-row h-full">
-                <ScrollArea className="h-full border-r">
-                    <div className="flex flex-col gap-1 p-1 w-14">
-                        <Authenticated>
-                            <UserButton />
-                            <ServerListWrapper />
-                            <CreateServer />
-                        </Authenticated>
-                    </div>
-                </ScrollArea>
-                {children}
-            </div>
+            <ChannelHistoryProvider>
+                <div className="flex flex-row h-full">
+                    <ScrollArea className="h-full border-r">
+                        <div className="flex flex-col gap-1 p-1 w-14">
+                            <Authenticated>
+                                <UserButton />
+                                <ServerListWrapper />
+                                <CreateServer />
+                            </Authenticated>
+                        </div>
+                    </ScrollArea>
+                    {children}
+                </div>
+            </ChannelHistoryProvider>
         </>
     );
 }

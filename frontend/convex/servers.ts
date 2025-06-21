@@ -69,6 +69,27 @@ export const getJoined = query({
     },
 });
 
+export const getJoinedWithFirstChannel = query({
+    args: {},
+    handler: async (ctx) => {
+        const user = await getCurrentUserOrThrow(ctx);
+
+        const joinedServers = await ctx.db.query("userServers").withIndex("byUser", (q) => q.eq("userId", user._id)).collect();
+        return Promise.all(joinedServers.map(async x => {
+            const server = await ctx.db.get(x.serverId);
+
+            if (server === null) throw new Error("User is member of server that doesn't exist");
+
+            const channelId: Id<"channels"> = (await ctx.runQuery(api.channels.getFirst, { serverId: server._id })).id;
+            if (channelId === null) {
+                throw new Error("Server has no channels.");
+            }
+
+            return { serverId: server._id, serverName: server.name, channelId: channelId }
+        }));
+    },
+});
+
 
 export const create = mutation({
     args: { name: v.string() },

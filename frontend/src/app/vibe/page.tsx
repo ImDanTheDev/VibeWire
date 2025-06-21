@@ -21,8 +21,6 @@ export default async function Vibing() {
         }
         redirect(`/vibe/${server.value}`);
     } else {
-        // or open the first channel of the first server
-        // TODO: Implement
         const first = await fetchQuery(api.servers.getFirstJoinedServerChannel, {}, {
             token: await getAuthToken()
         });
