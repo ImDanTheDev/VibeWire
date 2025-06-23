@@ -5,6 +5,7 @@ import CreateServer from "@/components/CreateServer";
 import UserButton from "@/components/UserButton";
 import Authenticated from "@/components/Authenticated";
 import ChannelHistoryProvider from "@/components/ChannelHistoryContext";
+import SocketProvider from "@/components/SocketContext";
 
 export default function VibeLayout({
     children,
@@ -13,7 +14,7 @@ export default function VibeLayout({
 }>) {
 
     return (
-        <>
+        <SocketProvider>
             <ChannelHistoryProvider>
                 <div className="flex flex-row h-full">
                     <ScrollArea className="h-full border-r">
@@ -28,6 +29,6 @@ export default function VibeLayout({
                     {children}
                 </div>
             </ChannelHistoryProvider>
-        </>
+        </SocketProvider>
     );
 }

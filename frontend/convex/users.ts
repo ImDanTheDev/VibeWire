@@ -61,3 +61,22 @@ async function userByExternalId(ctx: QueryCtx, externalId: string) {
         .withIndex("byExternalId", (q) => q.eq("externalId", externalId))
         .unique();
 }
+
+export const getUserIdByExternalUserId = query({
+    args: {
+        externalUserId: v.string(),
+        serviceToken: v.string()
+    },
+    handler: async (ctx, args) => {
+        if (args.serviceToken !== process.env.CONVEX_SERVICE_KEY) {
+            throw new Error("Service token invalid.");
+        }
+
+        const user = await ctx.db.query("users").withIndex("byExternalId", (q) => q.eq("externalId", args.externalUserId)).first();
+        if (user === null) {
+            throw new Error("User with external id does not exist.");
+        }
+
+        return user._id;
+    },
+});

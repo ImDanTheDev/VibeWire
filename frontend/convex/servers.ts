@@ -69,6 +69,25 @@ export const getJoined = query({
     },
 });
 
+export const getJoinedIds = query({
+    args: {
+        userId: v.id("users"),
+        serviceToken: v.string()
+    },
+    handler: async (ctx, args) => {
+        if (args.serviceToken !== process.env.CONVEX_SERVICE_KEY) {
+            throw new Error("Service token invalid.");
+        }
+
+        const joinedServers = await ctx.db.query("userServers").withIndex("byUser", (q) => q.eq("userId", args.userId)).collect();
+        return Promise.all(joinedServers.map(async x => {
+            const server = await ctx.db.get(x.serverId);
+
+            return server?._id || "NO_SERVER_ID"
+        }));
+    },
+});
+
 export const getJoinedWithFirstChannel = query({
     args: {},
     handler: async (ctx) => {
