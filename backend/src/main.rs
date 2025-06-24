@@ -3,15 +3,13 @@ mod state;
 
 use axum::{
     Extension, Router,
-    body::Bytes,
     extract::{
         State,
-        ws::{Message, Utf8Bytes, WebSocket, WebSocketUpgrade},
+        ws::{Message, WebSocket, WebSocketUpgrade},
     },
     response::IntoResponse,
     routing::any,
 };
-use axum_extra::TypedHeader;
 use clerk_rs::{
     ClerkConfiguration,
     clerk::Clerk,
@@ -19,33 +17,25 @@ use clerk_rs::{
 };
 use convex::{ConvexClient, Value};
 use messages::{ClientMessage, ServerMessage};
-use serde::{Deserialize, Serialize};
 use state::AppState;
-use tokio::sync::{
-    RwLock,
-    broadcast::{self, Sender},
-    mpsc::{UnboundedSender, unbounded_channel},
-};
+use tokio::sync::mpsc::unbounded_channel;
 
-use std::{
-    collections::{BTreeMap, HashMap, HashSet},
-    env,
-    net::SocketAddr,
-    time::SystemTime,
-};
-use std::{ops::ControlFlow, sync::Arc};
+use std::sync::Arc;
+use std::{collections::BTreeMap, env, net::SocketAddr};
 use tower_http::trace::{DefaultMakeSpan, TraceLayer};
 
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 //allows to extract the IP of connecting user
 use axum::extract::connect_info::ConnectInfo;
-use axum::extract::ws::CloseFrame;
 
 //allows to split the websocket stream into separate TX and RX branches
 use futures_util::{sink::SinkExt, stream::StreamExt};
 
-use crate::{messages::UserStatus, state::Subscription};
+use crate::{
+    messages::UserStatus,
+    state::{ConnectionId, Subscription},
+};
 
 #[tokio::main]
 async fn main() {
@@ -141,11 +131,11 @@ async fn ws_handler(
 async fn handle_socket(socket: WebSocket, who: SocketAddr, user_id: String, state: Arc<AppState>) {
     let (mut ws_tx, mut ws_rx) = socket.split();
 
-    println!("`{user_id}` at {who} connected.");
-
     // Channel to receive direct server messages.
     let (tx, mut rx) = unbounded_channel::<ServerMessage>();
-    state.add_client(user_id.clone(), tx);
+    let conn_id = state.add_connection(user_id.clone(), tx);
+
+    println!("`{user_id}:{conn_id}` at {who} connected.");
 
     // Subscribe to broadcasted server messages.
     let mut broadcast_rx = state.broadcast_tx.subscribe();
@@ -186,6 +176,7 @@ async fn handle_socket(socket: WebSocket, who: SocketAddr, user_id: String, stat
                     Message::Text(msg) => {
                         let msg: ClientMessage = serde_json::from_str(msg.as_str()).unwrap();
                         process_client_message(
+                            &conn_id,
                             ws_rx_user_id.clone(),
                             msg,
                             Arc::clone(&ws_rx_state),
@@ -203,8 +194,9 @@ async fn handle_socket(socket: WebSocket, who: SocketAddr, user_id: String, stat
         }
     });
 
-    // Notify all users that are watching a server that this user is a member of, that this user came online.
+    // Notify all connections that are watching a server that this user is a member of, that this user came online.
     {
+        println!("Notify watchers");
         let mut convex = state.convex.clone();
         let joined_ids = convex
             .query(
@@ -239,10 +231,10 @@ async fn handle_socket(socket: WebSocket, who: SocketAddr, user_id: String, stat
         println!("ServerIds: {server_ids:?}");
         let server_subs = state.server_subscriptions.lock().unwrap();
         for server_id in server_ids {
-            if let Some(user_ids) = server_subs.get(&server_id) {
-                for recip_id in user_ids {
-                    state.send_to_client(
-                        &recip_id,
+            if let Some(conn_ids) = server_subs.get(&server_id) {
+                for recip_conn_id in conn_ids {
+                    state.send_to_connection(
+                        &recip_conn_id,
                         ServerMessage::StatusChange {
                             user_id: user_id.clone(),
                             status: UserStatus::Online,
@@ -258,11 +250,14 @@ async fn handle_socket(socket: WebSocket, who: SocketAddr, user_id: String, stat
         _ = ws_rx_task => println!("Client-to-server task for {} finished.", user_id)
     }
 
-    state.remove_client(&user_id);
-    println!("Client {user_id} disconnected and cleaned up");
+    let Ok(connections_remain) = state.remove_connection(&conn_id) else {
+        println!("Could not remove connection");
+        return;
+    };
+    println!("{user_id}:{conn_id} disconnected and cleaned up");
 
     // Notify all users that are watching a server that this user is a member of, that this user went offline.
-    {
+    if !connections_remain {
         let mut convex = state.convex.clone();
         let joined_ids = convex
             .query(
@@ -295,10 +290,10 @@ async fn handle_socket(socket: WebSocket, who: SocketAddr, user_id: String, stat
         };
         let server_subs = state.server_subscriptions.lock().unwrap();
         for server_id in server_ids {
-            if let Some(user_ids) = server_subs.get(&server_id) {
-                for recip_id in user_ids {
-                    state.send_to_client(
-                        &recip_id,
+            if let Some(conn_ids) = server_subs.get(&server_id) {
+                for recip_conn_id in conn_ids {
+                    state.send_to_connection(
+                        &recip_conn_id,
                         ServerMessage::StatusChange {
                             user_id: user_id.clone(),
                             status: UserStatus::Offline,
@@ -313,26 +308,31 @@ async fn handle_socket(socket: WebSocket, who: SocketAddr, user_id: String, stat
     println!("Websocket context {who} destroyed");
 }
 
-fn process_client_message(user_id: UserId, msg: ClientMessage, state: Arc<AppState>) {
+fn process_client_message(
+    conn_id: &ConnectionId,
+    user_id: UserId,
+    msg: ClientMessage,
+    state: Arc<AppState>,
+) {
     match msg {
         ClientMessage::SubscribeToChannel {
             server_id,
             channel_id,
         } => {
-            let mut subs = state.subscriptions.lock().unwrap();
             let mut server_subs = state.server_subscriptions.lock().unwrap();
 
-            // Add new user sub, replacing the old one.
-            if let Some(old_sub) = subs.insert(
-                user_id.clone(),
-                Subscription {
-                    channel_id: channel_id.clone(),
+            // Add a new subscription, replacing the old one.
+            {
+                let mut connections = state.connections.lock().unwrap();
+                let conn = connections.get_mut(&conn_id).unwrap();
+                if let Some(old_sub) = conn.subscription.replace(Subscription {
                     server_id: server_id.clone(),
-                },
-            ) {
-                // Remove existing server sub.
-                if let Some(server_subs) = server_subs.get_mut(&old_sub.server_id) {
-                    server_subs.remove(&user_id);
+                    channel_id: channel_id.clone(),
+                }) {
+                    // Remove existing old server sub.
+                    if let Some(server_subs) = server_subs.get_mut(&old_sub.server_id) {
+                        server_subs.remove(&conn_id);
+                    }
                 }
             }
 
@@ -340,18 +340,23 @@ fn process_client_message(user_id: UserId, msg: ClientMessage, state: Arc<AppSta
             server_subs
                 .entry(server_id.clone())
                 .and_modify(|server_subs| {
-                    server_subs.insert(user_id.clone());
+                    server_subs.insert(*conn_id);
                 })
-                .or_insert([user_id.clone()].into());
-            println!("{user_id} subscribed to {server_id}:{channel_id}");
+                .or_insert_with(|| [conn_id.clone()].into());
+            println!("{user_id}:{conn_id} subscribed to {server_id}:{channel_id}");
 
             // TODO: Maybe combine into a message with array of user->status?
             // TODO: Send actual status, not just Online.
-            for member_user_id in server_subs.get(&server_id).unwrap() {
-                state.send_to_client(
-                    &user_id,
+            // Send status of every user in the server to this new user's connection.
+            for member_conn_id in server_subs.get(&server_id).unwrap() {
+                let member_conn_id = {
+                    let connections = state.connections.lock().unwrap();
+                    connections.get(&member_conn_id).unwrap().user_id.clone()
+                };
+                state.send_to_connection(
+                    &conn_id,
                     ServerMessage::StatusChange {
-                        user_id: member_user_id.clone(),
+                        user_id: member_conn_id,
                         status: UserStatus::Online,
                     },
                 );
