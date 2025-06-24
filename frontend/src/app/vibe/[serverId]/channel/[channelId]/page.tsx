@@ -17,7 +17,7 @@ export default async function ChannelPage({ params }: Readonly<{ params: Promise
             </ScrollArea>
             <div className="p-2 flex gap-2  max-h-1/2">
                 <Authenticated>
-                    <MessageSender channelId={channelId} />
+                    <MessageSender serverId={serverId} channelId={channelId} />
                 </Authenticated>
             </div>
         </div>

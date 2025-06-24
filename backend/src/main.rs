@@ -18,10 +18,15 @@ use clerk_rs::{
 use convex::{ConvexClient, Value};
 use messages::{ClientMessage, ServerMessage};
 use state::AppState;
-use tokio::sync::mpsc::unbounded_channel;
+use tokio::{sync::mpsc::unbounded_channel, time::Instant};
 
 use std::sync::Arc;
-use std::{collections::BTreeMap, env, net::SocketAddr};
+use std::{
+    collections::BTreeMap,
+    env,
+    net::SocketAddr,
+    time::{Duration, SystemTime},
+};
 use tower_http::trace::{DefaultMakeSpan, TraceLayer};
 
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -92,7 +97,25 @@ async fn main() {
 }
 
 async fn server_initiated_messages(app_state: Arc<AppState>) {
-    //
+    loop {
+        let mut typing = app_state.typing.lock().unwrap();
+        for ((server_id, channel_id), typers) in typing.iter_mut() {
+            let mut expired_typers = Vec::new();
+            for (user_id, last_typed) in typers.iter() {
+                if Instant::now().duration_since(*last_typed).as_secs() >= 10 {
+                    // User stopped typing, expire it.
+                    expired_typers.push(user_id.clone());
+                }
+            }
+            for typer in expired_typers {
+                typers.remove(&typer);
+            }
+        }
+
+        // Duration::from_secs(2);
+        tokio::time::sleep_until(Instant::now()).await;
+        // tokio::time::sleep(Duration::from_secs(2)).await
+    }
 }
 
 type UserId = String;
@@ -361,6 +384,17 @@ fn process_client_message(
                     },
                 );
             }
+        }
+        ClientMessage::TypingStart {
+            server_id,
+            channel_id,
+        } => {
+            println!("Typing Start");
+            let mut typing = state.typing.lock().unwrap();
+            let typers = typing.entry((server_id, channel_id)).or_default();
+            typers.insert(user_id.clone(), Instant::now());
+
+            // TODO: Send typing indicators to channel subscribers
         }
         _ => {}
     }

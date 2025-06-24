@@ -3,10 +3,14 @@ use std::{
     fmt::Display,
     ops::{Add, AddAssign},
     sync::{Arc, Mutex},
+    time::SystemTime,
 };
 
 use convex::ConvexClient;
-use tokio::sync::{broadcast, mpsc::UnboundedSender};
+use tokio::{
+    sync::{broadcast, mpsc::UnboundedSender},
+    time::Instant,
+};
 
 use crate::{ChannelId, ServerId, ServerMessage, UserId};
 
@@ -20,6 +24,7 @@ pub struct AppState {
     pub users: Arc<Mutex<HashMap<UserId, UserInfo>>>,
     pub broadcast_tx: BroadcastTx,
     pub server_subscriptions: Arc<Mutex<HashMap<ServerId, HashSet<ConnectionId>>>>,
+    pub typing: Arc<Mutex<HashMap<(ServerId, ChannelId), HashMap<UserId, Instant>>>>,
 }
 
 pub struct ConnectionInfo {
@@ -56,6 +61,7 @@ impl AppState {
             users: Arc::new(Mutex::new(HashMap::new())),
             broadcast_tx: broadcast_tx,
             server_subscriptions: Arc::new(Mutex::new(HashMap::new())),
+            typing: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
